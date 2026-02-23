@@ -1,0 +1,30 @@
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "corp-local-gateway": {
+        "api": "openai-completions",
+        "baseUrl": "http://127.0.0.1:18080/v1",
+        "apiKey": "local-proxy-key",
+        "authHeader": true,
+        "models": [
+          {
+            "id": "panzhi_qwen3_coder",
+            "name": "Qwen3 Coder (Panzhi)"
+          },
+          {
+            "id": "neibu_qwen3_coder",
+            "name": "Qwen3 Coder (Neibu)"
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "corp-local-gateway/neibu_qwen3_coder"
+      }
+    }
+  }
+}

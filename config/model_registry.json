@@ -1,0 +1,33 @@
+{
+  "client_api_keys": [
+    "local-proxy-key"
+  ],
+  "providers": [
+    {
+      "id": "panzhi",
+      "provider_type": "panzhi",
+      "base_url_env": "PANZHI_BASE_URL",
+      "timeout_seconds": 300,
+      "models": [
+        {
+          "alias": "panzhi_qwen3_coder",
+          "upstream": "qwen3_coder",
+          "upstream_env": "PANZHI_MODEL_NAME"
+        }
+      ]
+    },
+    {
+      "id": "neibu",
+      "provider_type": "neibu",
+      "base_url_env": "OPENAI_API_BASE",
+      "timeout_seconds": 300,
+      "models": [
+        {
+          "alias": "neibu_qwen3_coder",
+          "upstream": "c75441a972d34ff893bf859f86c8f96a",
+          "upstream_env": "INTERNAL_DEFAULT_MODEL"
+        }
+      ]
+    }
+  ]
+}
