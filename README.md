@@ -70,6 +70,35 @@ set +a
 python -m app.main
 ```
 
+## Docker 启动
+
+### 1) 准备配置
+
+```bash
+cp .env.example .env                                          # 编辑填入真实密钥
+cp config/model_registry.example.json config/model_registry.json
+```
+
+### 2) 构建并启动
+
+```bash
+docker compose up -d --build
+```
+
+### 3) 查看日志
+
+```bash
+docker compose logs -f
+```
+
+### 4) 停止
+
+```bash
+docker compose down
+```
+
+> **提示**：`docker-compose.yml` 中已自动将 `HOST` 覆盖为 `0.0.0.0`，无需手动修改 `.env`。
+
 ## 调用示例（直连本地网关）
 
 ### 1) 调用 neibu 模型

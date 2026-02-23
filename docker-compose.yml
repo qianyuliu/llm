@@ -1,0 +1,14 @@
+services:
+  gateway:
+    build: .
+    container_name: openclaw-gateway
+    ports:
+      - "18080:18080"
+    env_file:
+      - .env
+    environment:
+      # Override HOST to ensure the container listens on all interfaces
+      - HOST=0.0.0.0
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped

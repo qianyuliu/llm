@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import time
 from typing import Any
 
@@ -10,6 +12,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.config import GatewayConfig
 from app.providers import ModelRouter, ProviderFactory
+
+logger = logging.getLogger(__name__)
 
 
 class Gateway:
@@ -146,20 +150,36 @@ class Gateway:
             raise HTTPException(status_code=502, detail=f"Upstream request failed: {exc}") from exc
 
         if response.status_code >= 400:
-            body = await response.aread()
-            await response.aclose()
+            try:
+                body = await response.aread()
+            except httpx.HTTPError as exc:
+                body = (
+                    json.dumps(
+                        {"error": {"message": f"Failed to read upstream error body: {exc}"}}
+                    ).encode("utf-8")
+                )
+            finally:
+                await response.aclose()
             parsed = self._parse_error_body(body)
             return JSONResponse(status_code=response.status_code, content=parsed)
+
+        media_type = response.headers.get("content-type", "text/event-stream")
 
         async def iter_chunks() -> Any:
             try:
                 async for chunk in response.aiter_raw():
                     if chunk:
                         yield chunk
+            except asyncio.CancelledError:
+                raise
+            except httpx.HTTPError as exc:
+                logger.warning("Upstream stream interrupted: %s", exc)
+                if "text/event-stream" in media_type:
+                    yield self._to_sse_bytes({"error": {"message": f"upstream stream interrupted: {exc}"}})
+                    yield b"data: [DONE]\n\n"
             finally:
                 await response.aclose()
 
-        media_type = response.headers.get("content-type", "text/event-stream")
         passthrough_headers: dict[str, str] = {}
         if "x-request-id" in response.headers:
             passthrough_headers["x-request-id"] = response.headers["x-request-id"]
@@ -179,6 +199,10 @@ class Gateway:
         except Exception:
             pass
         return {"error": {"message": raw.decode("utf-8", errors="replace")}}
+
+    @staticmethod
+    def _to_sse_bytes(payload: dict[str, Any]) -> bytes:
+        return f"data:{json.dumps(payload, ensure_ascii=False)}\n\n".encode("utf-8")
 
     @staticmethod
     def _merge_sse_chunks_to_chat_completion(
