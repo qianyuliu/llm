@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from dotenv import load_dotenv
+
+load_dotenv()  # 自动加载项目根目录 .env
+
 import os
 from contextlib import asynccontextmanager
 from typing import Any
@@ -10,7 +14,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import Response
 
 from app.config import ConfigError, load_gateway_config
+from app.env import load_project_env
 from app.gateway import Gateway
+
+load_project_env()
 
 
 @asynccontextmanager

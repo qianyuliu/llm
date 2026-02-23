@@ -70,6 +70,8 @@ set +a
 python -m app.main
 ```
 
+说明：应用启动时会自动尝试加载项目根目录 `.env`。即使未手动 `source .env`，常见场景下也可读取到环境变量。
+
 ## Docker 启动
 
 ### 1) 准备配置
@@ -146,12 +148,82 @@ print(resp.choices[0].message.content)
 
 ## OpenClaw 配置
 
-参考：`/Users/levent/leventProjects/llm/openclaw.example.json`
+参考模板：`/Users/levent/leventProjects/llm/openclaw.example.json`
 
-配置后可直接选：
+### 1) 合并 provider 到 OpenClaw 配置
 
-- `corp-local-gateway/panzhi_qwen3_coder`
-- `corp-local-gateway/neibu_qwen3_coder`
+OpenClaw 配置文件通常在：
+
+- `/Users/levent/.openclaw/openclaw.json`
+
+把下面片段合并到 `models.providers`（不要覆盖你现有 provider）：
+
+```json
+"corp-local-gateway": {
+  "api": "openai-completions",
+  "baseUrl": "http://127.0.0.1:18080/v1",
+  "apiKey": "local-proxy-key",
+  "authHeader": true,
+  "models": [
+    {
+      "id": "panzhi_qwen3_coder",
+      "name": "Qwen3 Coder (Panzhi)",
+      "contextWindow": 200000,
+      "maxTokens": 8192
+    },
+    {
+      "id": "neibu_qwen3_coder",
+      "name": "Qwen3 Coder (Neibu)",
+      "contextWindow": 200000,
+      "maxTokens": 8192
+    }
+  ]
+}
+```
+
+### 2) 设置默认模型
+
+可在 `openclaw.json` 中设置：
+
+```json
+"agents": {
+  "defaults": {
+    "model": {
+      "primary": "corp-local-gateway/neibu_qwen3_coder"
+    }
+  }
+}
+```
+
+也可用 CLI：
+
+```bash
+openclaw models set corp-local-gateway/neibu_qwen3_coder
+```
+
+### 3) 验证配置是否生效
+
+```bash
+openclaw models status --plain
+openclaw models status --probe --probe-provider corp-local-gateway
+openclaw status
+```
+
+### 4) 常见问题
+
+`openclaw status` 会显示当前会话实际模型，不一定等于默认模型。默认模型失败时会自动走 fallback。
+
+如果看到类似 `Model context window too small (4096). Minimum is 16000`，说明该模型被阻断了。把模型元信息调大：
+
+```bash
+openclaw config set models.providers.corp-local-gateway.models[0].contextWindow 200000 --strict-json
+openclaw config set models.providers.corp-local-gateway.models[0].maxTokens 8192 --strict-json
+openclaw config set models.providers.corp-local-gateway.models[1].contextWindow 200000 --strict-json
+openclaw config set models.providers.corp-local-gateway.models[1].maxTokens 8192 --strict-json
+openclaw gateway restart
+```
+
+若仍然看到旧模型，开一个新会话再观察 `status`。
 
 ## 扩展新模型
 
@@ -166,4 +238,3 @@ print(resp.choices[0].message.content)
 - `POST /v1/chat/completions`
 - `POST /v1/completions`
 - `POST /v1/responses`
-

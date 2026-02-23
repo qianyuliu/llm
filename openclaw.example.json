@@ -10,11 +10,15 @@
         "models": [
           {
             "id": "panzhi_qwen3_coder",
-            "name": "Qwen3 Coder (Panzhi)"
+            "name": "Qwen3 Coder (Panzhi)",
+            "contextWindow": 200000,
+            "maxTokens": 8192
           },
           {
             "id": "neibu_qwen3_coder",
-            "name": "Qwen3 Coder (Neibu)"
+            "name": "Qwen3 Coder (Neibu)",
+            "contextWindow": 200000,
+            "maxTokens": 8192
           }
         ]
       }

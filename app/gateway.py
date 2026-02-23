@@ -118,6 +118,9 @@ class Gateway:
             content = {
                 "error": {
                     "message": "Upstream returned non-JSON response.",
+                    "upstream_status": response.status_code,
+                    "upstream_content_type": response.headers.get("content-type", ""),
+                    "upstream_location": response.headers.get("location", ""),
                     "raw": raw_text,
                 }
             }
