@@ -28,6 +28,29 @@
           "upstream_env": "INTERNAL_DEFAULT_MODEL"
         }
       ]
+    },
+    {
+      "id": "kimi",
+      "provider_type": "neibu",
+      "base_url_env": "OPENAI_API_BASE",
+      "timeout_seconds": 300,
+      "auth": {
+        "api_id_env": "KIMI_API_ID",
+        "api_secret_env": "KIMI_API_SECRET",
+        "model_id_env": "KIMI_MODEL_ID",
+        "model_source_env": "KIMI_MODEL_SOURCE",
+        "trace_id_env": "KIMI_TRACE_ID",
+        "model_id_from": "env"
+      },
+      "path_overrides": {
+        "/chat/completions": ""
+      },
+      "models": [
+        {
+          "alias": "kimi",
+          "upstream": "Kimi"
+        }
+      ]
     }
   ]
 }
