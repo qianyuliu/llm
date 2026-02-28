@@ -14,25 +14,25 @@ class ConfigError(RuntimeError):
 
 class ModelConfig(BaseModel):
     alias: str
-    upstream: str | None = None
-    upstream_env: str | None = None
+    upstream_model: str | None = None
+    upstream_model_env: str | None = None
 
-    def resolved_upstream(self, provider_id: str) -> str:
-        if self.upstream_env:
-            value = os.getenv(self.upstream_env, "").strip()
+    def resolve_upstream_model(self, provider_id: str) -> str:
+        if self.upstream_model_env:
+            value = os.getenv(self.upstream_model_env, "").strip()
             if value:
                 return value
-            if self.upstream and self.upstream.strip():
-                return self.upstream.strip()
+            if self.upstream_model and self.upstream_model.strip():
+                return self.upstream_model.strip()
             raise ConfigError(
                 f"Model '{self.alias}' in provider '{provider_id}' requires env "
-                f"'{self.upstream_env}' for upstream id."
+                f"'{self.upstream_model_env}' for upstream model."
             )
-        if self.upstream and self.upstream.strip():
-            return self.upstream.strip()
+        if self.upstream_model and self.upstream_model.strip():
+            return self.upstream_model.strip()
         raise ConfigError(
             f"Model '{self.alias}' in provider '{provider_id}' must set "
-            "'upstream' or 'upstream_env'."
+            "'upstream_model' or 'upstream_model_env'."
         )
 
 
@@ -60,9 +60,21 @@ class ProviderConfig(BaseModel):
         raise ConfigError(f"Provider '{self.id}' must set base_url or base_url_env.")
 
 
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Deep merge two dicts. override takes precedence; nested dicts are merged recursively."""
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 class GatewayConfig(BaseModel):
     providers: list[ProviderConfig]
     client_api_keys: list[str] = Field(default_factory=list)
+    provider_defaults: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     @classmethod
     def from_file(cls, path: Path) -> "GatewayConfig":
@@ -75,10 +87,31 @@ class GatewayConfig(BaseModel):
             raw = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise ConfigError(f"Invalid JSON in {path}: {exc}") from exc
+        if not isinstance(raw, dict):
+            raise ConfigError(f"Expected JSON object in {path}")
+        raw = cls._apply_provider_defaults(raw)
         try:
             return cls.model_validate(raw)
         except ValidationError as exc:
             raise ConfigError(f"Invalid registry schema in {path}: {exc}") from exc
+
+    @staticmethod
+    def _apply_provider_defaults(raw: dict[str, Any]) -> dict[str, Any]:
+        defaults = raw.get("provider_defaults", {})
+        if not defaults or not isinstance(defaults, dict):
+            return raw
+        providers = raw.get("providers", [])
+        merged_providers = []
+        for provider in providers:
+            if not isinstance(provider, dict):
+                merged_providers.append(provider)
+                continue
+            ptype = provider.get("provider_type", "generic")
+            if ptype in defaults:
+                provider = _deep_merge(defaults[ptype], provider)
+            merged_providers.append(provider)
+        raw["providers"] = merged_providers
+        return raw
 
 
 def _resolve_registry_path() -> Path:

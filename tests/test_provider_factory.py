@@ -11,7 +11,7 @@ def test_panzhi_factory_uses_default_env_contract(monkeypatch) -> None:
     config = ProviderConfig(
         id="panzhi",
         provider_type="panzhi",
-        models=[ModelConfig(alias="a", upstream="qwen3_coder")],
+        models=[ModelConfig(alias="a", upstream_model="qwen3_coder")],
     )
     provider = ProviderFactory.create_provider(config)
     url, headers, _ = asyncio.run(provider.request_spec("/chat/completions", "qwen3_coder"))
@@ -28,9 +28,23 @@ def test_neibu_factory_defaults_to_base_url_chat_endpoint(monkeypatch) -> None:
     config = ProviderConfig(
         id="neibu",
         provider_type="neibu",
-        models=[ModelConfig(alias="b", upstream="qwen3")],
+        models=[ModelConfig(alias="b", upstream_model="qwen3")],
     )
     provider = ProviderFactory.create_provider(config)
     url, headers, _ = asyncio.run(provider.request_spec("/chat/completions", "qwen3"))
+    assert url == "http://example.local/openapi/chat/chat/completions"
+    assert headers["Authorization"] == "Bearer signed-token"
+
+
+def test_juzhi_factory_reuses_neibu_auth_mechanism(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_BASE", "http://example.local/openapi/chat")
+    monkeypatch.setenv("INTERNAL_API_KEY_OVERRIDE", "signed-token")
+    config = ProviderConfig(
+        id="juzhi_test",
+        provider_type="juzhi",
+        models=[ModelConfig(alias="c", upstream_model="test_model")],
+    )
+    provider = ProviderFactory.create_provider(config)
+    url, headers, _ = asyncio.run(provider.request_spec("/chat/completions", "test_model"))
     assert url == "http://example.local/openapi/chat/chat/completions"
     assert headers["Authorization"] == "Bearer signed-token"

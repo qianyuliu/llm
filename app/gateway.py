@@ -50,6 +50,10 @@ class Gateway:
         if not model_alias:
             raise HTTPException(status_code=400, detail="Request body must include 'model'.")
 
+        is_stream = bool(payload.get("stream", False))
+        start = time.monotonic()
+        logger.info("proxy_start | model=%s path=%s stream=%s", model_alias, path, is_stream)
+
         try:
             route = self.router.resolve(model_alias)
         except RuntimeError as exc:
@@ -64,21 +68,30 @@ class Gateway:
             upstream_model=route.upstream_model,
         )
 
-        if bool(forwarded_payload.get("stream", False)):
-            return await self._proxy_stream(
-                url=upstream_url,
-                headers=headers,
-                payload=forwarded_payload,
-                _timeout_seconds=timeout_seconds,
-            )
-        return await self._proxy_json(
-            path=path,
-            url=upstream_url,
-            headers=headers,
-            payload=forwarded_payload,
-            timeout_seconds=timeout_seconds,
-            requested_model=model_alias,
-        )
+        try:
+            if is_stream:
+                result = await self._proxy_stream(
+                    url=upstream_url,
+                    headers=headers,
+                    payload=forwarded_payload,
+                    _timeout_seconds=timeout_seconds,
+                )
+            else:
+                result = await self._proxy_json(
+                    path=path,
+                    url=upstream_url,
+                    headers=headers,
+                    payload=forwarded_payload,
+                    timeout_seconds=timeout_seconds,
+                    requested_model=model_alias,
+                )
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            logger.info("proxy_done  | model=%s elapsed=%dms stream=%s", model_alias, elapsed_ms, is_stream)
+            return result
+        except HTTPException:
+            elapsed_ms = int((time.monotonic() - start) * 1000)
+            logger.warning("proxy_error | model=%s elapsed=%dms stream=%s", model_alias, elapsed_ms, is_stream)
+            raise
 
     async def _proxy_json(
         self,
@@ -300,7 +313,7 @@ class Gateway:
         for provider_config in config.providers:
             provider = ProviderFactory.create_provider(provider_config)
             for model in provider_config.models:
-                upstream_model = model.resolved_upstream(provider_config.id)
+                upstream_model = model.resolve_upstream_model(provider_config.id)
                 router.register(
                     alias=model.alias,
                     upstream_model=upstream_model,

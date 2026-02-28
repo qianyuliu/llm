@@ -14,7 +14,7 @@ class ProviderFactory:
         provider_type = config.provider_type.strip().lower()
         if provider_type == "panzhi":
             return ProviderFactory._create_panzhi_provider(config)
-        if provider_type in {"neibu", "internal"}:
+        if provider_type in {"neibu", "internal", "juzhi"}:
             return ProviderFactory._create_neibu_provider(config)
         return ProviderFactory._create_generic_provider(config)
 
